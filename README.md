@@ -1,2 +1,2 @@
 # daemonize
-TBD
+Open main.cpp as an example
