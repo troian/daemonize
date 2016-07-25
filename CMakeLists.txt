@@ -20,3 +20,5 @@ set(SOURCE_LIB
 set(LIB_NAME daemonize)
 
 add_library(${LIB_NAME} STATIC ${SOURCE_LIB})
+
+target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

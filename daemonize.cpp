@@ -40,18 +40,18 @@ static int already_running() {
 
 	g_lock_fd = open(g_lock_file->c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
 	if (g_lock_fd <= 0) {
-		syslog(LOG_ERR, "Can't open executable to lock: \"%s\": %s\n", g_lock_file->c_str(), strerror(errno));
+		fprintf(stderr, "Can't open executable to lock: \"%s\": %s\n", g_lock_file->c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
 	if (flock(g_lock_fd, LOCK_EX | LOCK_NB) != 0) {
-		syslog(LOG_ERR, "Can't lock the lock file \"%s\". Is another instance running?\n", g_lock_file->c_str());
+		fprintf(stderr, "Can't lock the lock file \"%s\". Is another instance running?\n", g_lock_file->c_str());
 		err_exit(EXIT_FAILURE);
 	}
 
 	fd = open(g_pid_file->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd <= 0) {
-		syslog(LOG_ERR, "Unable to open %s: %s", g_pid_file->c_str(), strerror(errno));
+		fprintf(stderr, "Unable to open %s: %s", g_pid_file->c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -85,21 +85,21 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	cleanup_ctx = ctx;
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) < 0) {
-		syslog(LOG_ERR, "Unable to ger descriptor file. Error: %s", strerror(errno));
+		fprintf(stderr, "Unable to ger descriptor file. Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
 	pid = fork();
 
 	if (pid < 0) {
-		syslog(LOG_ERR, "Start Daemon Error: %s", strerror(errno));
+		fprintf(stderr, "Start Daemon Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	} else if (pid != 0) {
 		exit(EXIT_SUCCESS);
 	}
 
 	if (setsid() < 0) {
-		syslog(LOG_ERR, "Unable to set signature id. Error: %s", strerror(errno));
+		fprintf(stderr, "Unable to set signature id. Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -107,13 +107,13 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	if (sigaction(SIGHUP, &sa, NULL) < 0) {
-		syslog(LOG_ERR, "Unable to ignore signal SIGHUP. Error: %s", strerror(errno));
+		fprintf(stderr, "Unable to ignore signal SIGHUP. Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
 	// Let process be a session leader
 	if ((pid = fork()) < 0) {
-		syslog(LOG_ERR, "Unable to fork. Error: %s", strerror(errno));
+		fprintf(stderr, "Unable to fork. Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 	else if (pid != 0) /* parent process */
@@ -121,7 +121,7 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 
 	// Setup environment dir
 	if (chdir(env_dir->c_str()) < 0) {
-		syslog(LOG_ERR, "Unable to change dir to [%s]. Error: %s", env_dir->c_str(), strerror(errno));
+		fprintf(stderr, "Unable to change dir to [%s]. Error: %s", env_dir->c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -141,7 +141,7 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
 
 	if (setrlimit(RLIMIT_CORE, &core_limits) < 0) {
-		syslog(LOG_ERR, "Unable to set rlimits. Error: %s", strerror(errno));
+		fprintf(stderr, "Unable to set rlimits. Error: %s", strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -157,7 +157,7 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	if (stdin_fd != 0) {
 		if (stdin_fd > 0)
 			close(stdin_fd);
-		syslog(LOG_ERR, "Unable to redirect stdin: Opened to: %d. Error: %s", stdin_fd, strerror(errno));
+		fprintf(stderr, "Unable to redirect stdin: Opened to: %d. Error: %s", stdin_fd, strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -168,11 +168,11 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	if (stdout_fd != 1) {
 		if (stdout_fd > 0)
 			close(stdout_fd);
-		syslog(LOG_ERR, "Unable to redirect stdout: Opened to: %d. Error: %s", stdout_fd, strerror(errno));
+		fprintf(stderr, "Unable to redirect stdout: Opened to: %d. Error: %s", stdout_fd, strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 	if (chmod(std_file.c_str(), 0644) < 0) {
-		syslog(LOG_ERR, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
+		fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
@@ -184,16 +184,16 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 	if (stderr_fd != 2) {
 		if (stderr_fd > 0)
 			close(stderr_fd);
-		syslog(LOG_ERR, "Unable to redirect stderr: Opened to: %d. Error: %s", stderr_fd, strerror(errno));
+		fprintf(stderr, "Unable to redirect stderr: Opened to: %d. Error: %s", stderr_fd, strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 	if (chmod(std_file.c_str(), 0644) < 0) {
-		syslog(LOG_ERR, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
+		fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
 	}
 
 	if ((g_lock_fd = already_running()) < 0) {
-		syslog(LOG_ERR, "Already running");
+		fprintf(stderr, "Already running");
 		exit(EXIT_FAILURE);
 	}
 

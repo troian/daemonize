@@ -22,7 +22,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <execinfo.h>
+//#include <execinfo.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <wait.h>
