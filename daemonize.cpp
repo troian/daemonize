@@ -1,5 +1,5 @@
 /**
- * Copyright [2016] [Artur Troian <troian at ap dot gmail dot com>]
+ * Copyright [2016] [Artur Troian <troian dot ap at gmail dot com>]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,15 @@
 #include <string>
 #include <boost/filesystem.hpp>
 
-#include "daemonize.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-static int          g_lock_fd = 0;
-static std::string *g_env_dir = nullptr;
-static std::string *g_pid_file = nullptr;
+#include <daemon/daemonize.h>
+
+static int         *g_lock_fd   = nullptr;
+static std::string *g_env_dir   = nullptr;
+static std::string *g_pid_file  = nullptr;
 static std::string *g_lock_file = nullptr;
 
 cleanup_cb cleanup = nullptr;
@@ -35,21 +39,29 @@ void err_exit(int err)
 	exit(err);
 }
 
-static int already_running() {
-	int fd;
+static bool already_running()
+{
+	g_lock_fd = new int;
 
-	g_lock_fd = open(g_lock_file->c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+	*g_lock_fd = open(g_lock_file->c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
 	if (g_lock_fd <= 0) {
 		fprintf(stderr, "Can't open executable to lock: \"%s\": %s\n", g_lock_file->c_str(), strerror(errno));
-		err_exit(EXIT_FAILURE);
+		delete g_lock_fd;
+		return true;
 	}
 
-	if (flock(g_lock_fd, LOCK_EX | LOCK_NB) != 0) {
+	if (flock(*g_lock_fd, LOCK_EX | LOCK_NB) != 0) {
 		fprintf(stderr, "Can't lock the lock file \"%s\". Is another instance running?\n", g_lock_file->c_str());
-		err_exit(EXIT_FAILURE);
+		close(*g_lock_fd);
+		delete g_lock_fd;
+		return true;
 	}
+	return false;
+}
 
-	fd = open(g_pid_file->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+static int write_pid()
+{
+	int fd = open(g_pid_file->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd <= 0) {
 		fprintf(stderr, "Unable to open %s: %s", g_pid_file->c_str(), strerror(errno));
 		err_exit(EXIT_FAILURE);
@@ -59,8 +71,6 @@ static int already_running() {
 	ftruncate(fd, 0);
 	sprintf(buf, "%ld\n", (long)getpid());
 	write(fd, buf, strlen(buf));
-
-	return g_lock_fd;
 }
 
 std::string get_env_dir()
@@ -68,56 +78,133 @@ std::string get_env_dir()
 	return *g_env_dir;
 }
 
-int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_file, cleanup_cb cb, void *ctx)
+int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_file, cleanup_cb cb, bool *daemonize, std::string *f_stdout, std::string *f_stderr, void *ctx)
 {
-	pid_t            pid;
-	struct sigaction sa;
-
 	struct rlimit rl;
 
-	umask(0);
-
-	g_env_dir = env_dir;
-	g_pid_file = pid_file;
+	g_env_dir   = env_dir;
+	g_pid_file  = pid_file;
 	g_lock_file = lock_file;
 
 	cleanup = cb;
 	cleanup_ctx = ctx;
 
-	if (getrlimit(RLIMIT_NOFILE, &rl) < 0) {
-		fprintf(stderr, "Unable to ger descriptor file. Error: %s", strerror(errno));
-		err_exit(EXIT_FAILURE);
+	if (already_running()) {
+		errno = EALREADY;
+		return -1;
 	}
 
-	pid = fork();
+	if (*daemonize == true) {
+		pid_t pid;
+		struct sigaction sa;
 
-	if (pid < 0) {
-		fprintf(stderr, "Start Daemon Error: %s", strerror(errno));
-		err_exit(EXIT_FAILURE);
-	} else if (pid != 0) {
-		exit(EXIT_SUCCESS);
-	}
+		umask(0);
 
-	if (setsid() < 0) {
-		fprintf(stderr, "Unable to set signature id. Error: %s", strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
+		if (getrlimit(RLIMIT_NOFILE, &rl) < 0) {
+			fprintf(stderr, "Unable to ger descriptor file. Error: %s", strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
 
-	sa.sa_handler = SIG_IGN;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	if (sigaction(SIGHUP, &sa, NULL) < 0) {
-		fprintf(stderr, "Unable to ignore signal SIGHUP. Error: %s", strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
+		pid = fork();
 
-	// Let process be a session leader
-	if ((pid = fork()) < 0) {
-		fprintf(stderr, "Unable to fork. Error: %s", strerror(errno));
-		err_exit(EXIT_FAILURE);
+		if (pid < 0) {
+			fprintf(stderr, "Start Daemon Error: %s", strerror(errno));
+			err_exit(EXIT_FAILURE);
+		} else if (pid != 0) {
+			exit(EXIT_SUCCESS);
+		}
+
+		if (setsid() < 0) {
+			fprintf(stderr, "Unable to set signature id. Error: %s", strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		sa.sa_handler = SIG_IGN;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		if (sigaction(SIGHUP, &sa, NULL) < 0) {
+			fprintf(stderr, "Unable to ignore signal SIGHUP. Error: %s", strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		// Let process be a session leader
+		if ((pid = fork()) < 0) {
+			fprintf(stderr, "Unable to fork. Error: %s", strerror(errno));
+			err_exit(EXIT_FAILURE);
+		} else if (pid != 0) {/* parent process */
+			exit(EXIT_SUCCESS);
+		}
+
+		// Close all file descriptors
+		fflush(stdin);
+		fflush(stdout);
+		fflush(stderr);
+
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+
+		// check of log directory exists
+		std::string log_path(*env_dir);
+		log_path += "/log";
+		if (!boost::filesystem::exists(log_path)) {
+			boost::filesystem::create_directory(log_path);
+		}
+
+		//reopen stdin, stdout, stderr
+		int stdin_fd = open("/dev/null", O_RDONLY);
+		if (stdin_fd != 0) {
+			if (stdin_fd > 0)
+				close(stdin_fd);
+			fprintf(stderr, "Unable to redirect stdin: Opened to: %d. Error: %s", stdin_fd, strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		std::string std_file;
+
+		if (f_stdout->compare("/dev/null") == 0) {
+			std_file = *f_stdout;
+		} else {
+			std_file.append(*env_dir);
+			std_file.append("/log/stdout.log");
+		}
+
+		int stdout_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
+		if (stdout_fd != 1) {
+			if (stdout_fd > 0)
+				close(stdout_fd);
+			fprintf(stderr, "Unable to redirect stdout: Opened to: %d. Error: %s", stdout_fd, strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		if (chmod(std_file.c_str(), 0644) < 0) {
+			fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		if (f_stderr->compare("/dev/null") == 0) {
+			std_file = *f_stderr;
+		} else {
+			std_file.clear();
+			std_file.append(*env_dir);
+			std_file.append("/log/stderr.log");
+		}
+
+
+		int stderr_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
+
+		if (stderr_fd != 2) {
+			if (stderr_fd > 0)
+				close(stderr_fd);
+			fprintf(stderr, "Unable to redirect stderr: Opened to: %d. Error: %s", stderr_fd, strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
+
+		if (chmod(std_file.c_str(), 0644) < 0) {
+			fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
+			err_exit(EXIT_FAILURE);
+		}
 	}
-	else if (pid != 0) /* parent process */
-		exit(EXIT_SUCCESS);
 
 	// Setup environment dir
 	if (chdir(env_dir->c_str()) < 0) {
@@ -125,17 +212,9 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 		err_exit(EXIT_FAILURE);
 	}
 
-	if (rl.rlim_max == RLIM_INFINITY)
+	if (rl.rlim_max == RLIM_INFINITY) {
 		rl.rlim_max = 1024;
-
-	// Close all file descriptors
-	fflush(stdin);
-	fflush(stdout);
-	fflush(stderr);
-
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
+	}
 
 	struct rlimit core_limits;
 	core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
@@ -145,57 +224,11 @@ int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_f
 		err_exit(EXIT_FAILURE);
 	}
 
-	// check of log directory exists
-	std::string log_path(*env_dir);
-	log_path += "/log";
-	if (!boost::filesystem::exists(log_path)) {
-		boost::filesystem::create_directory(log_path);
-	}
+	write_pid();
 
-	//reopen stdin, stdout, stderr
-	int stdin_fd = open("/dev/null", O_RDONLY);
-	if (stdin_fd != 0) {
-		if (stdin_fd > 0)
-			close(stdin_fd);
-		fprintf(stderr, "Unable to redirect stdin: Opened to: %d. Error: %s", stdin_fd, strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
+	int lock_fd = *g_lock_fd;
 
-	std::string std_file(*env_dir);
-	std_file += "/log/stdout.log";
+	delete g_lock_fd;
 
-	int stdout_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
-	if (stdout_fd != 1) {
-		if (stdout_fd > 0)
-			close(stdout_fd);
-		fprintf(stderr, "Unable to redirect stdout: Opened to: %d. Error: %s", stdout_fd, strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
-	if (chmod(std_file.c_str(), 0644) < 0) {
-		fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
-
-	std_file.clear();
-	std_file = *env_dir;
-	std_file += "/log/stderr.log";
-
-	int stderr_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
-	if (stderr_fd != 2) {
-		if (stderr_fd > 0)
-			close(stderr_fd);
-		fprintf(stderr, "Unable to redirect stderr: Opened to: %d. Error: %s", stderr_fd, strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
-	if (chmod(std_file.c_str(), 0644) < 0) {
-		fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
-		err_exit(EXIT_FAILURE);
-	}
-
-	if ((g_lock_fd = already_running()) < 0) {
-		fprintf(stderr, "Already running");
-		exit(EXIT_FAILURE);
-	}
-
-	return g_lock_fd;
+	return lock_fd;
 }

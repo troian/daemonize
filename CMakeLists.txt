@@ -15,10 +15,20 @@
 #
 
 set(SOURCE_LIB
-        daemonize.cpp)
+    daemonize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/export/daemon/daemonize.h
+)
 
 set(LIB_NAME daemonize)
 
-add_library(${LIB_NAME} STATIC ${SOURCE_LIB})
+add_library(
+	${LIB_NAME}
+	STATIC
+	${SOURCE_LIB}
+)
 
-target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(
+	${LIB_NAME}
+	PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include/export
+)

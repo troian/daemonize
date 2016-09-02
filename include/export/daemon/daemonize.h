@@ -1,5 +1,5 @@
 /**
- * Copyright [2016] [Artur Troian <troian at ap dot gmail dot com>]
+ * Copyright [2016] [Artur Troian <troian dot ap at gmail dot com>]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef _DAEMONIZE_H_
-#define _DAEMONIZE_H_
+#pragma once
 
 #include <string>
 #include <sys/file.h>
@@ -31,10 +30,37 @@
 #include <ulimit.h>
 #include <signal.h>
 
+/**
+ * \typedef
+ *
+ * \brief
+ */
 typedef void (*cleanup_cb)(void *ctx);
 
+/**
+ * \brief  Get application environment dir
+ *
+ * \return
+ */
 std::string get_env_dir();
-int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_file, cleanup_cb cb, void *ctx = nullptr);
-void err_exit(int err);
 
-#endif //_DAEMONIZE_H_
+/**
+ * \brief
+ *
+ * \param[in]  env_dir
+ * \param[in]  lock_file
+ * \param[in]  pid_file
+ * \param[in]  cb
+ * \param[in]  daemonize
+ * \param[in]  ctx
+ *
+ * \return
+ */
+int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_file, cleanup_cb cb, bool *daemonize, std::string *f_stdout, std::string *f_stderr, void *ctx = nullptr);
+
+/**
+ * \brief
+ *
+ * \param err
+ */
+void err_exit(int err);
