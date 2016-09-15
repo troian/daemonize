@@ -27,6 +27,10 @@ add_library(
 	${SOURCE_LIB}
 )
 
+target_link_libraries(
+	${LIB_NAME}
+	jsoncpp
+)
 target_include_directories(
 	${LIB_NAME}
 	PUBLIC

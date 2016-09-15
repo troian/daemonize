@@ -30,6 +30,9 @@
 #include <ulimit.h>
 #include <signal.h>
 
+#include <json/json.h>
+#include <json/value.h>
+
 /**
  * \typedef
  *
@@ -47,16 +50,37 @@ std::string get_env_dir();
 /**
  * \brief
  *
- * \param[in]  env_dir
- * \param[in]  lock_file
- * \param[in]  pid_file
- * \param[in]  cb
- * \param[in]  daemonize
+ * \param[in]  env_dir   - executable environment dir
+ * \param[in]  lock_file - lock file to prevert running multiple instance
+ * \param[in]  pid_file  - file to store pid
+ * \param[in]  cb        - callback to cleanup context in case of error during init
+ * \param[in]  daemonize - either run as daemon or app
+ * \param[in]  config    - daemon config as Json::Value object with format
+ *                         \code
+ *                         {
+ *                             "io_mode" : "io_daemon",
+ *                             "io_daemon" : {
+ *                                 "stdin": "/dev/null",
+ *                                 "stdout": "/dev/null",
+ *                                 "stderr": "/dev/null"
+ *                             },
+ *                             "io_debug" : {
+ *                                 "stdin": "/dev/null",
+ *                                 "stdout": "stdout",
+ *                                 "stderr": "stderr"
+ *                             }
+ *                         \end
  * \param[in]  ctx
  *
  * \return
  */
-int make_daemon(std::string *env_dir, std::string *lock_file, std::string *pid_file, cleanup_cb cb, bool *daemonize, std::string *f_stdout, std::string *f_stderr, void *ctx = nullptr);
+int make_daemon(std::string *env_dir
+				, std::string *lock_file
+				, std::string *pid_file
+				, cleanup_cb cb
+				, bool *daemonize
+				, Json::Value *config
+				, void *ctx = nullptr);
 
 /**
  * \brief
