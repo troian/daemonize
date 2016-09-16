@@ -41,23 +41,17 @@
 typedef void (*cleanup_cb)(void *ctx);
 
 /**
- * \brief  Get application environment dir
+ * \brief   Daemonize application
+ *          This function may call \ref exit() in case of fatal error
  *
- * \return
- */
-std::string get_env_dir();
-
-/**
- * \brief
- *
- * \param[in]  env_dir   - executable environment dir
- * \param[in]  lock_file - lock file to prevert running multiple instance
- * \param[in]  pid_file  - file to store pid
- * \param[in]  cb        - callback to cleanup context in case of error during init
- * \param[in]  daemonize - either run as daemon or app
  * \param[in]  config    - daemon config as Json::Value object with format
- *                         \code
+ *                         This function will delete this object on destroy
+ *                         \code{.json}
  *                         {
+ *                             "as_daemon" : true,
+ *                             "env_dir" : "/dir/dir",
+ *                             "lock_file" : , // usually path to executable
+ *                             "pid_file" : "/var/run/service.pid,
  *                             "io_mode" : "io_daemon",
  *                             "io_daemon" : {
  *                                 "stdin": "/dev/null",
@@ -69,22 +63,15 @@ std::string get_env_dir();
  *                                 "stdout": "stdout",
  *                                 "stderr": "stderr"
  *                             }
- *                         \end
- * \param[in]  ctx
- *
- * \return
+ *                         \endcode
+ * \param[in]  cb        - callback to cleanup context in case of error during init
+ * \param[in]  ctx       - user data passed to cleanup callback
  */
-int make_daemon(std::string *env_dir
-				, std::string *lock_file
-				, std::string *pid_file
-				, cleanup_cb cb
-				, bool *daemonize
-				, Json::Value *config
-				, void *ctx = nullptr);
+void make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata = nullptr);
 
 /**
  * \brief
  *
  * \param err
  */
-void err_exit(int err);
+void exit_daemon(int err);
