@@ -1,5 +1,8 @@
 /**
- * Copyright [2016] [Artur Troian <troian dot ap at gmail dot com>]
+ * Copyright [2016]
+ *
+ * \author [Artur Troian <troian dot ap at gmail dot com>]
+ * \author [Oleg Kravchenko <troian dot ap at gmail dot com>]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +17,7 @@
  * limitations under the License.
  */
 
+
 #pragma once
 
 #include <string>
@@ -23,10 +27,10 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <sys/resource.h>
 #include <sys/ucontext.h>
-#include <ucontext.h>
+
 #include <ulimit.h>
 #include <signal.h>
 
@@ -67,7 +71,7 @@ typedef void (*cleanup_cb)(void *ctx);
  * \param[in]  cb        - callback to cleanup context in case of error during init
  * \param[in]  ctx       - user data passed to cleanup callback
  */
-void make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata = nullptr);
+pid_t make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata = nullptr);
 
 /**
  * \brief
@@ -75,3 +79,64 @@ void make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata = 
  * \param err
  */
 void exit_daemon(int err);
+
+namespace app_daemon {
+
+/**
+ * \brief
+ */
+class detached {
+public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  path
+	 * \param[in]  argv
+	 * \param[in]  envv
+	 *
+	 * \return
+	 */
+	static pid_t execute(const char *path, char *const argv[], char *const envv[]);
+
+	/**
+	 * \brief
+	 *
+	 * \param[in]  path
+	 * \param[in]  argv
+	 *
+	 * \return
+	 */
+	static pid_t execute(const char *path, char *const argv[]);
+
+private:
+	static pid_t daemonize();
+};
+
+class child {
+public:
+	/**
+	 * \brief
+	 *
+	 * \param[in]  path
+	 * \param[in]  argv
+	 * \param[in]  envv
+	 *
+	 * \return
+	 */
+	static pid_t execute(const char *path, char *const argv[], char *const envv[]);
+
+	/**
+	 * \brief
+	 *
+	 * \param[in]  path
+	 * \param[in]  argv
+	 *
+	 * \return
+	 */
+	static pid_t execute(const char *path, char *const argv[]);
+
+private:
+	static pid_t run();
+};
+
+} // namespace app_daemon

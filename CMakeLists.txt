@@ -16,10 +16,14 @@
 
 set(SOURCE_LIB
     daemonize.cpp
+    detach.cpp
+    child.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/export/daemon/daemonize.h
 )
 
 set(LIB_NAME daemonize)
+
+include_directories(${Boost_INCLUDE_DIR})
 
 add_library(
 	${LIB_NAME}
@@ -30,7 +34,9 @@ add_library(
 target_link_libraries(
 	${LIB_NAME}
 	jsoncpp
+	${Boost_LIBRARIES}
 )
+
 target_include_directories(
 	${LIB_NAME}
 	PUBLIC

@@ -1,5 +1,8 @@
 /**
- * Copyright [2016] [Artur Troian <troian dot ap at gmail dot com>]
+ * Copyright [2016]
+ *
+ * \author [Artur Troian <troian dot ap at gmail dot com>]
+ * \author [Oleg Kravchenko <troian dot ap at gmail dot com>]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +55,7 @@ void exit_daemon(int err)
 
 	delete g_config;
 
-	exit(err);
+	_exit(err);
 }
 
 static void already_running(const std::string &lock_file)
@@ -102,12 +105,14 @@ static void verify_config(Json::Value *config)
 	}
 }
 
-void make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
+pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 {
 	g_lock_fd   = new int;
 	g_config    = config;
 	cleanup     = cb;
 	cleanup_ctx = userdata;
+
+	int fds[2];
 
 	verify_config(config);
 
@@ -117,19 +122,52 @@ void make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 		pid_t            pid;
 		struct sigaction sa;
 
-		umask(0);
+//		umask(0);
 
-		pid = fork();
-		if (pid < 0) {
-			std::cerr << "Start Daemon Error:" << strerror(errno) << std::endl;
+		/* create pipe to retrive pid of daemon */
+		if (pipe(fds)) {
 			exit_daemon(EXIT_FAILURE);
-		} else if (pid != 0) {
-			exit(EXIT_SUCCESS);
 		}
 
-		if (setsid() < 0) {
-			std::cerr << "Unable to set signature id. Error: " << strerror(errno) << std::endl;
-			exit_daemon(EXIT_FAILURE);
+
+		if ((pid = fork())) {
+			/* close pipe for writting now to avoid deadlock, if child failed */
+			close(fds[1]);
+
+			if (pid == -1) {
+				/* can't fork, return error */
+				goto fork1_done;
+			}
+
+			int   status;
+			pid_t rc;
+
+			/* wait until child process finish with daemon startup */
+			while (-1 == (rc = waitpid(pid, &status, 0))) {
+				/* ignore POSIX signals */
+				if (EINTR != errno) {
+					pid = -1;
+
+					goto fork1_done;
+				}
+			}
+
+			/* daemon startup failed */
+			if (EXIT_FAILURE == WEXITSTATUS(status)) {
+				pid = -1;
+
+				goto fork1_done;
+			}
+
+			/* read pid of daemon from pipe */
+			if (sizeof(pid) != read(fds[0], &pid, sizeof(pid))) {
+				pid = -1;
+			}
+
+		fork1_done:
+			close(fds[0]);
+
+			return pid;
 		}
 
 		sa.sa_handler = SIG_IGN;
@@ -140,21 +178,57 @@ void make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 			exit_daemon(EXIT_FAILURE);
 		}
 
-		// Let process be a session leader
-		if ((pid = fork()) < 0) {
-			std::cerr << "Unable to fork. Error: %s" << strerror(errno) << std::endl;
+		/* second fork for daemon startup */
+		if ((pid = fork())) {
+			if (pid == -1) {
+				/* fail to fork, report about it */
+				_exit(EXIT_FAILURE);
+			}
+
+			/* report about successful attempt running of daemon */
+			_exit(EXIT_SUCCESS);
+		}
+
+		/* detach to init process */
+		if (setsid() < 0) {
 			exit_daemon(EXIT_FAILURE);
-		} else if (pid != 0) {
-			exit(EXIT_SUCCESS);
+		}
+
+		/* report our pid... */
+		pid = getpid();
+
+		/* to avoid duplicates of daemon */
+		if (sizeof(pid) != write(fds[1], &pid, sizeof(pid))) {
+			exit_daemon(EXIT_FAILURE);
+		}
+	}
+
+	// Close all of filedescriptors
+	/* retrieve maximum fd number */
+	int max_fds = getdtablesize();
+
+	if (max_fds == -1) {
+		exit_daemon(EXIT_FAILURE);
+	}
+
+	/* close all fds, except standard (in, out and err) streams */
+	for (int fd = 3; fd < max_fds; ++fd) {
+		struct stat st;
+		std::memset(&st, 0, sizeof(struct stat));
+
+		if (fstat(fd, &st)) {
+			/* fd not used */
+			continue;
+		}
+
+		if (close(fd)) {
+			exit_daemon(EXIT_FAILURE);
 		}
 	}
 
 	// Setup environment dir
 	if (chdir(config->operator[]("env_dir").asString().c_str()) < 0) {
-		std::cerr << "Unable to change dir to [" << config->operator[]("env_dir").asString() << "] Error: " << strerror(errno) << std::endl;
 		exit_daemon(EXIT_FAILURE);
-	} else {
-		std::cout << "Set env dir: " << config->operator[]("env_dir").asString() << std::endl;
 	}
 
 	// check of log directory exists
@@ -213,13 +287,13 @@ void make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 		if (stdout_fd != 1) {
 			if (stdout_fd > 0)
 				close(stdout_fd);
-			fprintf(stderr, "Unable to redirect stdout: Opened to: %d. Error: %s", stdout_fd, strerror(errno));
+			fprintf(stderr, "Unable to redirect stdout: Opened to: %d. Error: %s\n", stdout_fd, strerror(errno));
 			exit_daemon(EXIT_FAILURE);
 		}
 
 		if (std_file.compare("/dev/null") != 0) {
 			if (chmod(std_file.c_str(), 0644) < 0) {
-				fprintf(stderr, "Unable change file permision: [%s]. Reason: %s", std_file.c_str(), strerror(errno));
+				fprintf(stderr, "Unable change file permision: [%s]. Reason: %s\n", std_file.c_str(), strerror(errno));
 				exit_daemon(EXIT_FAILURE);
 			}
 		}
@@ -264,4 +338,6 @@ void make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 	}
 
 	write_pid(config->operator[]("pid_file").asString());
+
+	return 0;
 }
