@@ -59,7 +59,7 @@ pid_t detached::daemonize()
 
 	/* create pipe to retrive pid of daemon */
 	if (pipe(fds)) {
-		return (-1);
+		return -1;
 	}
 
 	/* first fork */
@@ -100,7 +100,7 @@ pid_t detached::daemonize()
 		done:
 		close(fds[0]);
 
-		return (pid);
+		return pid;
 	}
 
 	/* second fork for daemon startup */
@@ -140,14 +140,14 @@ pid_t detached::daemonize()
 		struct stat st;
 		std::memset(&st, 0, sizeof(struct stat));
 
-		if (fstat(fd, &st)) {
-			/* fd not used */
-			continue;
+		if (fstat(fd, &st) == 0) {
+			/* fd used */
+			if (close(fd)) {
+				_exit(EXIT_FAILURE);
+			}
 		}
 
-		if (close(fd)) {
-			_exit(EXIT_FAILURE);
-		}
+
 	}
 
 	return 0;

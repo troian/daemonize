@@ -35,7 +35,7 @@ pid_t child::execute(const char *path, char *const *argv, char *const *envv)
 	/* execute requested program */
 	execve(path, argv, envv);
 
-	/* execl() don't return, if successful */
+	/* execve() don't return, if successful */
 	_exit(EXIT_FAILURE);
 }
 
@@ -49,7 +49,7 @@ pid_t child::execute(const char *path, char *const *argv)
 	/* execute requested program */
 	execv(path, argv);
 
-	/* execl() don't return, if successful */
+	/* execve() don't return, if successful */
 	_exit(EXIT_FAILURE);
 }
 
@@ -57,7 +57,9 @@ pid_t child::run()
 {
 	pid_t pid;
 
-	if ((pid = fork())) {
+	pid = fork();
+
+	if (pid == 0) {
 		// Close all of filedescriptors
 		/* retrieve maximum fd number */
 		int max_fds = getdtablesize();
@@ -71,13 +73,11 @@ pid_t child::run()
 			struct stat st;
 			std::memset(&st, 0, sizeof(struct stat));
 
-			if (fstat(fd, &st)) {
-				/* fd not used */
-				continue;
-			}
-
-			if (close(fd)) {
-				_exit(EXIT_FAILURE);
+			if (fstat(fd, &st) == 0) {
+				/* fd used */
+				if (close(fd)) {
+					_exit(EXIT_FAILURE);
+				}
 			}
 		}
 	}

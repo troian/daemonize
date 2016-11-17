@@ -122,7 +122,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 		pid_t            pid;
 		struct sigaction sa;
 
-//		umask(0);
+		umask(0);
 
 		/* create pipe to retrive pid of daemon */
 		if (pipe(fds)) {
@@ -205,26 +205,23 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 	// Close all of filedescriptors
 	/* retrieve maximum fd number */
-	int max_fds = getdtablesize();
-
-	if (max_fds == -1) {
-		exit_daemon(EXIT_FAILURE);
-	}
-
-	/* close all fds, except standard (in, out and err) streams */
-	for (int fd = 3; fd < max_fds; ++fd) {
-		struct stat st;
-		std::memset(&st, 0, sizeof(struct stat));
-
-		if (fstat(fd, &st)) {
-			/* fd not used */
-			continue;
-		}
-
-		if (close(fd)) {
-			exit_daemon(EXIT_FAILURE);
-		}
-	}
+//	int max_fds = getdtablesize();
+//
+//	if (max_fds == -1) {
+//		exit_daemon(EXIT_FAILURE);
+//	}
+//
+//	/* close all fds, except standard (in, out and err) streams */
+//	for (int fd = 3; fd < max_fds; ++fd) {
+//		struct stat st;
+//		std::memset(&st, 0, sizeof(struct stat));
+//
+//		if (fstat(fd, &st) == 0) {
+//			if (close(fd)) {
+//				exit_daemon(EXIT_FAILURE);
+//			}
+//		}
+//	}
 
 	// Setup environment dir
 	if (chdir(config->operator[]("env_dir").asString().c_str()) < 0) {
@@ -233,6 +230,9 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 	// check of log directory exists
 	std::string log_path(config->operator[]("env_dir").asString());
+	if (log_path.back() != '/')
+		log_path += "/";
+
 	log_path += config->operator[]("log")["dir"].asString();
 	if (!boost::filesystem::exists(log_path)) {
 		boost::filesystem::create_directory(log_path);
