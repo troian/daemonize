@@ -19,7 +19,9 @@
 
 #include <daemon/daemonize.h>
 
-#include <cstdlib>
+#include <sys/file.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <cstring>
 
 namespace app_daemon {
@@ -58,12 +60,12 @@ pid_t detached::daemonize()
 	int fds[2];
 
 	/* create pipe to retrive pid of daemon */
-	if (pipe(fds)) {
+	if (pipe(fds) != 0) {
 		return -1;
 	}
 
 	/* first fork */
-	if ((pid = fork())) {
+	if ((pid = fork()) > 0) {
 		/* close pipe for writting now to avoid deadlock, if child failed */
 		close(fds[1]);
 
@@ -73,10 +75,9 @@ pid_t detached::daemonize()
 		}
 
 		int status;
-		pid_t rc;
 
 		/* wait until child process finish with daemon startup */
-		while (-1 == (rc = waitpid(pid, &status, 0))) {
+		while (-1 == waitpid(pid, &status, 0)) {
 			/* ignore POSIX signals */
 			if (EINTR != errno) {
 				pid = -1;
@@ -104,7 +105,7 @@ pid_t detached::daemonize()
 	}
 
 	/* second fork for daemon startup */
-	if ((pid = fork())) {
+	if ((pid = fork()) != 0) {
 		if (-1 == pid) {
 			/* fail to fork, report about it */
 			_exit(EXIT_FAILURE);
@@ -142,7 +143,7 @@ pid_t detached::daemonize()
 
 		if (fstat(fd, &st) == 0) {
 			/* fd used */
-			if (close(fd)) {
+			if (close(fd) != 0) {
 				_exit(EXIT_FAILURE);
 			}
 		}

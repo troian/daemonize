@@ -21,8 +21,9 @@
 #include <iostream>
 #include <fstream>
 
-#include <errno.h>
-#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/wait.h>
+
 #include <unistd.h>
 
 #include <boost/filesystem.hpp>
@@ -84,22 +85,22 @@ static void write_pid(const std::string &pid_file)
 
 static void verify_config(Json::Value *config)
 {
-	if (config->isMember("lock_file") == false) {
+	if (!config->isMember("lock_file")) {
 		std::cerr << "Daemon config must provide \"lock_file\" member";
 		exit_daemon(EXIT_FAILURE);
 	}
 
-	if (config->isMember("env_dir") == false) {
+	if (!config->isMember("env_dir")) {
 		std::cerr << "Daemon config must provide \"env_dir\" member";
 		exit_daemon(EXIT_FAILURE);
 	}
 
-	if (config->isMember("pid_file") == false) {
+	if (!config->isMember("pid_file")) {
 		std::cerr << "Daemon config must provide \"pid_file\" member";
 		exit_daemon(EXIT_FAILURE);
 	}
 
-	if (config->isMember("as_daemon") == false) {
+	if (!config->isMember("as_daemon")) {
 		std::cerr << "Daemon config must provide \"as_daemon\" member";
 		exit_daemon(EXIT_FAILURE);
 	}
@@ -118,7 +119,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 	already_running(config->operator[]("lock_file").asString());
 
-	if (config->operator[]("as_daemon").asBool() == true) {
+	if (config->operator[]("as_daemon").asBool()) {
 		pid_t            pid;
 		struct sigaction sa;
 
@@ -140,10 +141,9 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 			}
 
 			int   status;
-			pid_t rc;
 
 			/* wait until child process finish with daemon startup */
-			while (-1 == (rc = waitpid(pid, &status, 0))) {
+			while (-1 == waitpid(pid, &status, 0)) {
 				/* ignore POSIX signals */
 				if (EINTR != errno) {
 					pid = -1;
@@ -257,7 +257,6 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 			std_file.append(io_config["stdin"].asString());
 		}
 
-		fflush(stdin);
 		close(STDIN_FILENO);
 
 		int stdin_fd = open(std_file.c_str(), O_RDONLY);
@@ -280,7 +279,6 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 			std_file.append(io_config["stdout"].asString());
 		}
 
-		fflush(stdout);
 		close(STDOUT_FILENO);
 
 		int stdout_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
@@ -309,7 +307,6 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 			std_file.append(io_config["stderr"].asString());
 		}
 
-		fflush(stderr);
 		close(STDERR_FILENO);
 
 		int stderr_fd = open(std_file.c_str(), O_CREAT | O_WRONLY | O_TRUNC);
@@ -330,7 +327,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 	}
 
 	struct rlimit core_limits;
-	core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
+	core_limits.rlim_cur = core_limits.rlim_max = (rlim_t)RLIM_INFINITY;
 
 	if (setrlimit(RLIMIT_CORE, &core_limits) < 0) {
 		fprintf(stderr, "Unable to set rlimits. Error: %s", strerror(errno));

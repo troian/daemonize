@@ -20,8 +20,12 @@
 
 #include <daemon/daemonize.h>
 
-#include <cstdlib>
+//#include <cstdlib>
+#include <sys/file.h>
+//#include <sys/stat.h>
+//#include <sys/wait.h>
 #include <cstring>
+#include <unistd.h>
 
 namespace app_daemon {
 
@@ -75,7 +79,7 @@ pid_t child::run()
 
 			if (fstat(fd, &st) == 0) {
 				/* fd used */
-				if (close(fd)) {
+				if (close(fd) != 0) {
 					_exit(EXIT_FAILURE);
 				}
 			}

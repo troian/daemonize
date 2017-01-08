@@ -17,22 +17,7 @@
  * limitations under the License.
  */
 
-
 #pragma once
-
-#include <string>
-#include <sys/file.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <sys/ucontext.h>
-
-#include <ulimit.h>
-#include <signal.h>
 
 #include <json/json.h>
 #include <json/value.h>
