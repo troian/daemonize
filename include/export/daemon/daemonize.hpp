@@ -22,6 +22,8 @@
 #include <json/json.h>
 #include <json/value.h>
 
+namespace daemonize {
+
 /**
  * \typedef
  *
@@ -65,8 +67,6 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata =
  */
 void exit_daemon(int err);
 
-namespace app_daemon {
-
 /**
  * \brief
  */
@@ -81,20 +81,10 @@ public:
 	 *
 	 * \return
 	 */
-	static pid_t execute(const char *path, char *const argv[], char *const envv[]);
+	static pid_t execute(const char *path, char *const argv[], char *const envv[] = nullptr);
 
-	/**
-	 * \brief
-	 *
-	 * \param[in]  path
-	 * \param[in]  argv
-	 *
-	 * \return
-	 */
-	static pid_t execute(const char *path, char *const argv[]);
-
-private:
-	static pid_t daemonize();
+public:
+	static pid_t make();
 };
 
 class child {
@@ -108,20 +98,10 @@ public:
 	 *
 	 * \return
 	 */
-	static pid_t execute(const char *path, char *const argv[], char *const envv[]);
-
-	/**
-	 * \brief
-	 *
-	 * \param[in]  path
-	 * \param[in]  argv
-	 *
-	 * \return
-	 */
-	static pid_t execute(const char *path, char *const argv[]);
+	static pid_t execute(const char *path, char *const argv[], char *const envv[] = nullptr);
 
 private:
-	static pid_t run();
+	static pid_t make();
 };
 
-} // namespace app_daemon
+} // namespace daemonize

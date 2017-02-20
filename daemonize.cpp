@@ -17,18 +17,18 @@
  * limitations under the License.
  */
 
+#include <sys/file.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <string>
 #include <iostream>
 #include <fstream>
 
-#include <sys/file.h>
-#include <sys/wait.h>
-
-#include <unistd.h>
-
 #include <boost/filesystem.hpp>
+#include <daemon/daemonize.hpp>
 
-#include <daemon/daemonize.h>
+namespace daemonize {
 
 static Json::Value *g_config = nullptr;
 static int *g_lock_fd        = nullptr;
@@ -113,115 +113,15 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 	cleanup     = cb;
 	cleanup_ctx = userdata;
 
-	int fds[2];
-
 	verify_config(config);
 
 	already_running(config->operator[]("lock_file").asString());
 
 	if (config->operator[]("as_daemon").asBool()) {
-		pid_t            pid;
-		struct sigaction sa;
-
-		umask(0);
-
-		/* create pipe to retrive pid of daemon */
-		if (pipe(fds)) {
-			exit_daemon(EXIT_FAILURE);
-		}
-
-
-		if ((pid = fork())) {
-			/* close pipe for writting now to avoid deadlock, if child failed */
-			close(fds[1]);
-
-			if (pid == -1) {
-				/* can't fork, return error */
-				goto fork1_done;
-			}
-
-			int   status;
-
-			/* wait until child process finish with daemon startup */
-			while (-1 == waitpid(pid, &status, 0)) {
-				/* ignore POSIX signals */
-				if (EINTR != errno) {
-					pid = -1;
-
-					goto fork1_done;
-				}
-			}
-
-			/* daemon startup failed */
-			if (EXIT_FAILURE == WEXITSTATUS(status)) {
-				pid = -1;
-
-				goto fork1_done;
-			}
-
-			/* read pid of daemon from pipe */
-			if (sizeof(pid) != read(fds[0], &pid, sizeof(pid))) {
-				pid = -1;
-			}
-
-		fork1_done:
-			close(fds[0]);
-
-			return pid;
-		}
-
-		sa.sa_handler = SIG_IGN;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		if (sigaction(SIGHUP, &sa, NULL) < 0) {
-			std::cerr << "Unable to ignore signal SIGHUP. Error: " << strerror(errno) << std::endl;
-			exit_daemon(EXIT_FAILURE);
-		}
-
-		/* second fork for daemon startup */
-		if ((pid = fork())) {
-			if (pid == -1) {
-				/* fail to fork, report about it */
-				_exit(EXIT_FAILURE);
-			}
-
-			/* report about successful attempt running of daemon */
-			_exit(EXIT_SUCCESS);
-		}
-
-		/* detach to init process */
-		if (setsid() < 0) {
-			exit_daemon(EXIT_FAILURE);
-		}
-
-		/* report our pid... */
-		pid = getpid();
-
-		/* to avoid duplicates of daemon */
-		if (sizeof(pid) != write(fds[1], &pid, sizeof(pid))) {
-			exit_daemon(EXIT_FAILURE);
-		}
+		pid_t p = daemonize::detached::make();
+		if (p > 0 || p < 0)
+			return p;
 	}
-
-	// Close all of filedescriptors
-	/* retrieve maximum fd number */
-//	int max_fds = getdtablesize();
-//
-//	if (max_fds == -1) {
-//		exit_daemon(EXIT_FAILURE);
-//	}
-//
-//	/* close all fds, except standard (in, out and err) streams */
-//	for (int fd = 3; fd < max_fds; ++fd) {
-//		struct stat st;
-//		std::memset(&st, 0, sizeof(struct stat));
-//
-//		if (fstat(fd, &st) == 0) {
-//			if (close(fd)) {
-//				exit_daemon(EXIT_FAILURE);
-//			}
-//		}
-//	}
 
 	// Setup environment dir
 	if (chdir(config->operator[]("env_dir").asString().c_str()) < 0) {
@@ -338,3 +238,5 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 	return 0;
 }
+
+} // namespace daemonize

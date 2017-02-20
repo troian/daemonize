@@ -17,47 +17,35 @@
  * limitations under the License.
  */
 
-
-#include <daemon/daemonize.h>
-
-//#include <cstdlib>
 #include <sys/file.h>
-//#include <sys/stat.h>
-//#include <sys/wait.h>
-#include <cstring>
 #include <unistd.h>
+#include <cstring>
 
-namespace app_daemon {
+#include <daemon/daemonize.hpp>
+#include <daemon/utils.hpp>
+
+
+namespace daemonize {
 
 pid_t child::execute(const char *path, char *const *argv, char *const *envv)
 {
-	pid_t pid = run();
+	pid_t pid = make();
 
 	if (pid > 0 || pid < 0)
 		return pid;
 
 	/* execute requested program */
-	execve(path, argv, envv);
+	if (envv) {
+		execve(path, argv, envv);
+	} else {
+		execv(path, argv);
+	}
 
-	/* execve() don't return, if successful */
+	// execv*() doesn't return, if successful
 	_exit(EXIT_FAILURE);
 }
 
-pid_t child::execute(const char *path, char *const *argv)
-{
-	pid_t pid = run();
-
-	if (pid > 0 || pid < 0)
-		return pid;
-
-	/* execute requested program */
-	execv(path, argv);
-
-	/* execve() don't return, if successful */
-	_exit(EXIT_FAILURE);
-}
-
-pid_t child::run()
+pid_t child::make()
 {
 	pid_t pid;
 
@@ -65,28 +53,10 @@ pid_t child::run()
 
 	if (pid == 0) {
 		// Close all of filedescriptors
-		/* retrieve maximum fd number */
-		int max_fds = getdtablesize();
-
-		if (max_fds == -1) {
-			_exit(EXIT_FAILURE);
-		}
-
-		/* close all fds, except standard (in, out and err) streams */
-		for (int fd = 3; fd < max_fds; ++fd) {
-			struct stat st;
-			std::memset(&st, 0, sizeof(struct stat));
-
-			if (fstat(fd, &st) == 0) {
-				/* fd used */
-				if (close(fd) != 0) {
-					_exit(EXIT_FAILURE);
-				}
-			}
-		}
+		close_derived_fds();
 	}
 
 	return pid;
 }
 
-} // namespace app_daemon
+} // namespace daemonize

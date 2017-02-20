@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-#include <iostream>
-#include <fstream>
-#include <signal.h>
-#include <pthread.h>
-#include <string>
-#include <memory>
 #include <syslog.h>
-
-#include <boost/filesystem.hpp>
-
-#include <hub/hub-types.h>
-
 #include <bits/siginfo.h>
 #include <getopt.h>
+#include <signal.h>
+#include <pthread.h>
 
-#include "daemonize.h"
+#include <string>
+#include <memory>
+#include <iostream>
+#include <fstream>
+
+#include <boost/filesystem.hpp>
+#include <daemon/daemonize.hpp>
 
 static std::string *env_dir = nullptr;
 static std::string *pid_file = nullptr;
@@ -60,17 +57,17 @@ void signal_handler(int sig, siginfo_t *info, void *ctx)
 
 	/* Get the address at the time the signal was raised */
 #if defined(__i386__) // gcc specific
-	sig_ucontext_t *uc = (sig_ucontext_t *)ctx;
-	caller_address = (void *) uc->uc_mcontext.eip; // EIP: x86 specific
+	sig_ucontext_t *uc = static_cast<sig_ucontext_t *>(ctx);
+	caller_address = static_cast<void *>(uc->uc_mcontext.eip); // EIP: x86 specific
 #elif defined(__x86_64__) // gcc specific
-	sig_ucontext_t *uc = (sig_ucontext_t *)ctx;
-	caller_address = (void *) uc->uc_mcontext.rip; // RIP: x86_64 specific
+	sig_ucontext_t *uc = static_cast<sig_ucontext_t *>(ctx);
+	caller_address = static_cast<void *>(uc->uc_mcontext.rip); // RIP: x86_64 specific
 #elif defined(__arm__)
-	ucontext_t *uc = (ucontext_t *)ctx;
+	ucontext_t *uc = static_cast<ucontext_t *>(ctx);
 //	struct sigcontext *crashContext = &uc->uc_mcontext;
-	caller_address = (void *)uc->uc_mcontext.arm_pc;
+	caller_address = static_cast<void *>(uc->uc_mcontext.arm_pc);
 #else
-	#error Unsupported architecture. // TODO: Add support for other arch.
+	#error Unsupported architecture. // TODO(Artur Troian): Add support for other arch.
 #endif
 
 	syslog(LOG_ERR, "Process fault into error. signal %s. Error: %s\n",

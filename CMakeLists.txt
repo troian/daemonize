@@ -18,12 +18,16 @@ set(SOURCE_LIB
     daemonize.cpp
     detach.cpp
     child.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/export/daemon/daemonize.h
+    utils.cpp
+
+    include/export/daemon/daemonize.hpp
+    include/local/daemon/utils.hpp
 )
 
 set(LIB_NAME daemonize)
 
 include_directories(${Boost_INCLUDE_DIR})
+include_directories(include/local)
 
 add_library(
 	${LIB_NAME}
