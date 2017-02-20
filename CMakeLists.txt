@@ -26,8 +26,8 @@ set(SOURCE_LIB
 
 set(LIB_NAME daemonize)
 
-include_directories(${Boost_INCLUDE_DIR})
-include_directories(include/local)
+include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/local)
 
 add_library(
 	${LIB_NAME}

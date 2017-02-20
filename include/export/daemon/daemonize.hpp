@@ -65,6 +65,9 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb = nullptr, void *userdata =
  *
  * \param err
  */
+#ifdef __GNUC__
+__attribute__ ((noreturn))
+#endif
 void exit_daemon(int err);
 
 /**
