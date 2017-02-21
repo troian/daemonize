@@ -19,7 +19,6 @@
 
 #include <sys/file.h>
 #include <unistd.h>
-#include <cstring>
 
 #include <daemon/daemonize.hpp>
 #include <daemon/utils.hpp>
