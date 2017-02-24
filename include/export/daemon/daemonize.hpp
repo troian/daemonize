@@ -84,7 +84,7 @@ public:
 	 *
 	 * \return
 	 */
-	static pid_t execute(const char *path, char *const argv[], char *const envv[] = nullptr);
+	static pid_t execute(const char *path, const char *const argv[], const char *const envv[] = nullptr);
 
 public:
 	static pid_t make();
@@ -101,7 +101,7 @@ public:
 	 *
 	 * \return
 	 */
-	static pid_t execute(const char *path, char *const argv[], char *const envv[] = nullptr);
+	static pid_t execute(const char *path, const char *const argv[], const char *const envv[] = nullptr);
 
 private:
 	static pid_t make();

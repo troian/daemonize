@@ -25,7 +25,7 @@
 
 namespace daemonize {
 
-pid_t detached::execute(const char *path, char *const *argv, char *const *envv)
+pid_t detached::execute(const char *path, const char *const argv[], const char *const envv[])
 {
 	pid_t pid = make();
 
@@ -34,9 +34,9 @@ pid_t detached::execute(const char *path, char *const *argv, char *const *envv)
 
 	/* execute requested program */
 	if (envv) {
-		execve(path, argv, envv);
+		execve(path, const_cast<char * const *>(argv), const_cast<char * const *>(envv));
 	} else {
-		execv(path, argv);
+		execv(path, const_cast<char * const *>(argv));
 
 	}
 	// exec*() doesn't return, if successful
