@@ -19,6 +19,9 @@
 
 #include <sys/file.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
+
 #include <unistd.h>
 
 #include <string>
@@ -52,7 +55,9 @@ void exit_daemon(int err)
 		delete g_lock_fd;
 	}
 
-	unlink(g_config->operator[]("pid_file").asString().c_str());
+	if (!g_config->operator[]("pid_file").empty()) {
+		unlink(g_config->operator[]("pid_file").asString().c_str());
+	}
 
 	delete g_config;
 
@@ -95,11 +100,6 @@ static void verify_config(Json::Value *config)
 		exit_daemon(EXIT_FAILURE);
 	}
 
-	if (!config->isMember("pid_file")) {
-		std::cerr << "Daemon config must provide \"pid_file\" member";
-		exit_daemon(EXIT_FAILURE);
-	}
-
 	if (!config->isMember("as_daemon")) {
 		std::cerr << "Daemon config must provide \"as_daemon\" member";
 		exit_daemon(EXIT_FAILURE);
@@ -130,10 +130,14 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 	// check of log directory exists
 	std::string log_path(config->operator[]("env_dir").asString());
-	if (log_path.back() != '/')
+	if (log_path.back() != '/') {
 		log_path += "/";
+	}
 
-	log_path += config->operator[]("log")["dir"].asString();
+	if (config->operator[]("log")["dir"].asString().substr(0, 1) != "/") {
+		log_path += config->operator[]("log")["dir"].asString();
+	}
+
 	if (!boost::filesystem::exists(log_path)) {
 		boost::filesystem::create_directory(log_path);
 	}
@@ -226,7 +230,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 		}
 	}
 
-	struct rlimit core_limits;
+	rlimit core_limits;
 	core_limits.rlim_cur = core_limits.rlim_max = (rlim_t)RLIM_INFINITY;
 
 	if (setrlimit(RLIMIT_CORE, &core_limits) < 0) {
@@ -234,7 +238,9 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 		exit_daemon(EXIT_FAILURE);
 	}
 
-	write_pid(config->operator[]("pid_file").asString());
+	if (!g_config->operator[]("pid_file").empty()) {
+		write_pid(config->operator[]("pid_file").asString());
+	}
 
 	return 0;
 }
