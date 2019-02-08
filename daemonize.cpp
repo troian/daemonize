@@ -195,7 +195,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata)
 
 		if (std_file.compare("/dev/null") != 0) {
 			if (chmod(std_file.c_str(), 0644) < 0) {
-				fprintf(stderr, "Unable change file permision: [%s]. Reason: %s\n", std_file.c_str(), strerror(errno));
+				fprintf(stderr, "Unable change file permission: [%s]. Reason: %s\n", std_file.c_str(), strerror(errno));
 				exit_daemon(EXIT_FAILURE);
 			}
 		}
