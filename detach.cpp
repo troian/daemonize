@@ -25,8 +25,7 @@
 
 namespace daemonize {
 
-pid_t detached::execute(const char *path, const char *const argv[], const char *const envv[])
-{
+pid_t detached::execute(const char *path, const char *const argv[], const char *const envv[]) {
 	pid_t pid = make();
 
 	if (pid > 0 || pid < 0)
@@ -43,19 +42,18 @@ pid_t detached::execute(const char *path, const char *const argv[], const char *
 	_exit(EXIT_FAILURE);
 }
 
-pid_t detached::make()
-{
+pid_t detached::make() {
 	pid_t pid;
 	int fds[2];
 
-	/* create pipe to retrive pid of daemon */
+	/* create pipe to retrieve pid of daemon */
 	if (pipe(fds) != 0) {
 		return -1;
 	}
 
 	/* first fork */
 	if ((pid = fork()) > 0) {
-		/* close pipe for writting now to avoid deadlock, if child failed */
+		/* close pipe for writing now to avoid deadlock, if child failed */
 		close(fds[1]);
 
 		if (-1 == pid) {
@@ -117,7 +115,7 @@ pid_t detached::make()
 		_exit(EXIT_FAILURE);
 	}
 
-	// Close all of filedescriptors
+	// Close all of file descriptors
 	close_derived_fds();
 
 	return 0;

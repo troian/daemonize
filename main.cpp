@@ -88,10 +88,10 @@ void signal_handler(int sig, siginfo_t *info, void *ctx)
 
 	size = backtrace(array, 50);
 
-    /* overwrite sigaction with caller's address */
-    array[1] = caller_address;
+	/* overwrite sigaction with caller's address */
+	array[1] = caller_address;
 
-    backtrace_symbols_fd(array, size, bt_fd);
+	backtrace_symbols_fd(array, size, bt_fd);
 
 	close(bt_fd);
 

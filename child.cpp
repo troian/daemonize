@@ -26,8 +26,7 @@
 
 namespace daemonize {
 
-pid_t child::execute(const char *path, const char * const argv[], const char * const envv[])
-{
+pid_t child::execute(const char *path, const char * const argv[], const char * const envv[]) {
 	pid_t pid = make();
 
 	if (pid > 0 || pid < 0) {
@@ -45,14 +44,13 @@ pid_t child::execute(const char *path, const char * const argv[], const char * c
 	_exit(EXIT_FAILURE);
 }
 
-pid_t child::make()
-{
+pid_t child::make() {
 	pid_t pid;
 
 	pid = fork();
 
 	if (pid == 0) {
-		// Close all of filedescriptors
+		// Close all of file descriptors
 		close_derived_fds();
 	}
 

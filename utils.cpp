@@ -12,8 +12,7 @@
 
 namespace daemonize {
 
-void close_derived_fds()
-{
+void close_derived_fds() {
 	/* retrieve maximum fd number */
 	int max_fds = getdtablesize();
 
@@ -23,8 +22,7 @@ void close_derived_fds()
 
 	/* close all fds, except standard (in, out and err) streams */
 	for (int fd = 3; fd < max_fds; ++fd) {
-		struct stat st;
-		std::memset(&st, 0, sizeof(struct stat));
+		struct stat st = {};
 
 		if (fstat(fd, &st) == 0) {
 			/* fd used */
