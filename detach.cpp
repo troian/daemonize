@@ -52,7 +52,7 @@ pid_t detached::make() {
 	}
 
 	/* first fork */
-	if ((pid = fork()) > 0) {
+	if ((pid = fork()) != 0) {
 		/* close pipe for writing now to avoid deadlock, if child failed */
 		close(fds[1]);
 

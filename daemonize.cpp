@@ -112,7 +112,8 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata) {
 
 	int *lock_pfd = nullptr;
 	if (lock_fd != 0) {
-		lock_pfd = new int(lock_fd);
+		lock_pfd = new int;
+		*lock_pfd = lock_fd;
 	}
 
 	if (config->operator[]("as_daemon").asBool()) {
