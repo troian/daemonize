@@ -51,7 +51,9 @@ pid_t child::make() {
 
 	if (pid == 0) {
 		// Close all of file descriptors
-		close_derived_fds();
+		if (close_derived_fds() != 0) {
+			_exit(EXIT_FAILURE);
+		}
 	}
 
 	return pid;

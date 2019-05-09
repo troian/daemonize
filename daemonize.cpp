@@ -119,7 +119,7 @@ pid_t make_daemon(Json::Value *config, cleanup_cb cb, void *userdata) {
 	if (config->operator[]("as_daemon").asBool()) {
 		pid_t p = daemonize::detached::make();
 		if (p != 0) {
-			return p;
+			return p; // -V::773
 		}
 	}
 

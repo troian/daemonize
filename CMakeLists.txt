@@ -14,35 +14,31 @@
 # limitations under the License.
 #
 
-set(SOURCE_LIB
-    daemonize.cpp
-    detach.cpp
-    child.cpp
-    utils.cpp
-
-    include/export/daemon/daemonize.hpp
-    include/local/daemon/utils.hpp
-)
-
-set(LIB_NAME daemonize)
-
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/local)
+project(daemonize)
 
 add_library(
-	${LIB_NAME}
+	${PROJECT_NAME}
 	STATIC
-	${SOURCE_LIB}
+	daemonize.cpp
+	detach.cpp
+	child.cpp
+	utils.cpp
+
+	include/export/daemon/daemonize.hpp
+	include/local/daemon/utils.hpp
 )
 
 target_link_libraries(
-	${LIB_NAME}
+	${PROJECT_NAME}
 	jsoncpp
 	${Boost_LIBRARIES}
 )
 
 target_include_directories(
-	${LIB_NAME}
+	${PROJECT_NAME}
 	PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/include/export
+		include/export
+		${Boost_INCLUDE_DIR}
+	PRIVATE
+		include/local
 )

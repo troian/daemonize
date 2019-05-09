@@ -116,7 +116,9 @@ pid_t detached::make() {
 	}
 
 	// Close all of file descriptors
-	close_derived_fds();
+	if (close_derived_fds() != 0) {
+		_exit(EXIT_FAILURE);
+	}
 
 	return 0;
 }

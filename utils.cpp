@@ -12,12 +12,12 @@
 
 namespace daemonize {
 
-void close_derived_fds() {
+int close_derived_fds() {
 	/* retrieve maximum fd number */
 	int max_fds = getdtablesize();
 
 	if (max_fds == -1) {
-		_exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	/* close all fds, except standard (in, out and err) streams */
@@ -27,10 +27,12 @@ void close_derived_fds() {
 		if (fstat(fd, &st) == 0) {
 			/* fd used */
 			if (close(fd) != 0) {
-				_exit(EXIT_FAILURE);
+				return -1;
 			}
 		}
 	}
+
+	return 0;
 }
 
 } // namespace daemonize

@@ -5,6 +5,6 @@
 
 namespace daemonize {
 
-void close_derived_fds();
+int close_derived_fds();
 
 } // namespace daemonize
